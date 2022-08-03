@@ -13,6 +13,7 @@ SPACESHIP_DIR_SUFFIX="${SPACESHIP_DIR_SUFFIX="$SPACESHIP_PROMPT_DEFAULT_SUFFIX"}
 SPACESHIP_DIR_TRUNC="${SPACESHIP_DIR_TRUNC=3}"
 SPACESHIP_DIR_TRUNC_PREFIX="${SPACESHIP_DIR_TRUNC_PREFIX=}"
 SPACESHIP_DIR_TRUNC_REPO="${SPACESHIP_DIR_TRUNC_REPO=true}"
+SPACESHIP_DIR_SHORT="${SPACESHIP_DIR_SHORT=false}"
 SPACESHIP_DIR_COLOR="${SPACESHIP_DIR_COLOR="cyan"}"
 SPACESHIP_DIR_LOCK_SYMBOL="${SPACESHIP_DIR_LOCK_SYMBOL=" "}"
 SPACESHIP_DIR_LOCK_COLOR="${SPACESHIP_DIR_LOCK_COLOR="red"}"
@@ -36,9 +37,9 @@ spaceship_dir() {
 
     # Check if the parent of the $git_root is "/"
     if [[ $git_root:h == / ]]; then
-      trunc_prefix=/
+      trunc_prefix="$git_root"
     else
-      trunc_prefix=$SPACESHIP_DIR_TRUNC_PREFIX
+      trunc_prefix="$SPACESHIP_DIR_TRUNC_PREFIX$git_root:t"
     fi
 
     # `${NAME#PATTERN}` removes a leading prefix PATTERN from NAME.
@@ -47,7 +48,7 @@ spaceship_dir() {
     # `$git_root` has symlinks resolved, so we use `${PWD:A}` which resolves
     # symlinks in the working directory.
     # See "Parameter Expansion" under the Zsh manual.
-    dir="$trunc_prefix$git_root:t${${PWD:A}#$~~git_root}"
+    dir="${${PWD:A}#$~~git_root}"
   else
     if [[ SPACESHIP_DIR_TRUNC -gt 0 ]]; then
       # `%(N~|TRUE-TEXT|FALSE-TEXT)` replaces `TRUE-TEXT` if the current path,
@@ -57,8 +58,26 @@ spaceship_dir() {
       trunc_prefix="%($((SPACESHIP_DIR_TRUNC + 1))~|$SPACESHIP_DIR_TRUNC_PREFIX|)"
     fi
 
-    dir="$trunc_prefix%${SPACESHIP_DIR_TRUNC}~"
+    dir="%${SPACESHIP_DIR_TRUNC}~"
   fi
+
+  if [[ $SPACESHIP_DIR_SHORT == true ]]; then
+    local cwd
+    cwd=("${(s:/:)$(print -P "$dir")}")
+    if (( $#cwd > 1 )); then
+      local i
+      for i in {1..$(($#cwd-1))}; do
+        if [[ "$cwd[$i]" = .* ]]; then
+          cwd[$i]="${${cwd[$i]}[1,2]}"
+        else
+          cwd[$i]="${${cwd[$i]}[1]}"
+        fi
+      done
+    fi
+    dir="${(j:/:)cwd}"
+  fi
+
+  dir="$trunc_prefix$dir"
 
   if [[ ! -w . ]]; then
     SPACESHIP_DIR_SUFFIX="%F{$SPACESHIP_DIR_LOCK_COLOR}${SPACESHIP_DIR_LOCK_SYMBOL}%f${SPACESHIP_DIR_SUFFIX}"
